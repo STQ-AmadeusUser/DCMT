@@ -1,0 +1,178 @@
+COMMON:
+  LOG_DIR: 'logs'   # log file
+  CHECKPOINT_DIR: 'snapshot'   # checkpoint file
+  ARCH_DIR: 'arch'   # checkpoint file
+  USE_CUDA: True
+#  GPUS: '1'
+  GPUS: '0,1,2,3'
+
+MODEL:
+  NAME: 'DenseSiam'
+  STRIDE: 8
+  BACKBONE:
+    NAME: "ResNet50Dilated"
+    LAYER: [3]
+  NECK:
+    NAME: "ShrinkChannel"
+    IN_CHANNEL: 1024
+    OUT_CHANNEL: 256
+  HEAD:
+    NAME: "SiamWAVECorr"
+    IN_CHANNEL: 256
+    OUT_CHANNEL: 256
+  LOSS:
+    CLS_LOSS: WBCE
+    REG_LOSS: FCOSIOU
+
+SEARCH:
+  ARCH_EPOCH: 16
+  SAMPLE_POLICY: 'prob'
+  WEIGHT_SAMPLE_NUM: 1
+  SOFTMAX_TEMP: 1.
+  PRIMITIVES_STACK: [ 'wavemlp_k3_t4',
+                      'wavemlp_k3_t8',
+                      'wavemlp_k5_t4',
+                      'wavemlp_k5_t8',
+                      'wavemlp_k7_t4',
+                      'wavemlp_k7_t8',
+                      'wavemlp_k3_t4_dw',
+                      'wavemlp_k3_t8_dw',
+                      'wavemlp_k5_t4_dw',
+                      'wavemlp_k5_t8_dw',
+                      'wavemlp_k7_t4_dw',
+                      'wavemlp_k7_t8_dw',
+                      'skip_connect', ]
+  PRIMITIVES_HEAD: [ 'wavemlp_k3_t4',
+                     'wavemlp_k3_t8',
+                     'wavemlp_k5_t4',
+                     'wavemlp_k5_t8',
+                     'wavemlp_k7_t4',
+                     'wavemlp_k7_t8',
+                     'wavemlp_k3_t4_dw',
+                     'wavemlp_k3_t8_dw',
+                     'wavemlp_k5_t4_dw',
+                     'wavemlp_k5_t8_dw',
+                     'wavemlp_k7_t4_dw',
+                     'wavemlp_k7_t8_dw', ]
+  ADJOIN_CONNECT_NUMS: [4,4]
+  NET_SCALE:
+    CHS: [256,256,320,384]
+    FM_SIZES: [31,31,31,31]
+    STAGE: [0,1,1,1,2]
+    NUM_LAYERS: [0,3,3,3]
+  LAST_DIM: 256
+  IF_SUB_OBJ: True
+  SUB_OBJ:
+    TYPE: 'latency'
+    SKIP_REG: False
+    LOG_BASE: 15.0
+    SUB_LOSS_FACTOR: 0.15
+    LATENCY_LIST_PATH: 'lat_list_densesiam_3090'
+  INIT:
+    MODE: 'he_fout'
+    BN_MOMENTUM: 0.1
+    BN_EPS: 0.001
+  ARCH:
+    ALPHA_LR: 0.0001
+    BETA_LR: 0.0001
+    WEIGHT_DECAY: 0.001
+
+TRAIN:
+  ISTRUE: False  # whether to test
+  WORKERS: 32
+  START_EPOCH: 0
+  END_EPOCH: 64
+  TEMPLATE_SIZE: 127
+  SEARCH_SIZE: 255
+  BATCH: 8   # batch for each GPU
+  RESUME: False
+#  RESUME: 'snapshot/checkpoint_e9.pth'
+  PRETRAIN: 'resnet50dilated.model'
+  LR_POLICY: 'log'
+  PRINT_FREQ: 10
+  CLS_WEIGHT: 1
+  REG_WEIGHT: 1
+  CLIP_GRAD: False
+
+  DDP:
+    ISTRUE: False  # torch distributed data parallel, default: False, normal data parallel
+    RANK: 0
+
+  WARMUP:
+    IFNOT: True
+    TYPE: 'step'
+    EPOCH: 5            # res50 5
+    WARM_POLICY: 'step'
+    KWARGS:
+      start_lr: 0.001    # res50 0.001 alex: 0.005
+      end_lr: 0.005      # res50 0.005  alex: 0.01
+      step: 1
+  LR:
+    TYPE: 'log'
+    KWARGS:
+      start_lr: 0.005        # res50 0.005  alex 0.01
+      end_lr: 0.00001         # res50 0.0005
+
+  LAYERS_LR: 0.1  # res50 0.1  alex: 1  # scale ration for backbone
+  BASE_LR: 0.005
+  UNFIX_EPOCH: 10
+  UNFIX_POLICY: 'log'
+  MOMENTUM: 0.9
+  WEIGHT_DECAY: 0.0001
+  TRAINABLE_LAYER: ['layer1', 'layer2', 'layer3']  # ['layer2', 'layer3', 'layer4'] [] FOR ALL LAYERS
+
+  DATASET:
+    VIDEOS_PER_EPOCH: -1
+#    VIDEOS_PER_EPOCH: 300000
+#    WHICH_USE: ['GOT10K']
+#    WHICH_USE: ['YTB']
+#    WHICH_USE: ['VID']
+#    WHICH_USE: ['COCO']
+#    WHICH_USE: ['DET']
+#    WHICH_USE: ['YTB', 'VID', 'DET', 'GOT10K']
+#    WHICH_USE: ['VID', 'DET', 'GOT10K', 'COCO']
+    WHICH_USE: ['YTB', 'VID', 'COCO', 'DET', 'GOT10K']
+
+    AUG:
+      EXEMPLAR:
+        SHIFT: 4
+        SCALE: 0.05
+      SEARCH:
+        SHIFTs: 64
+        SCALEs: 0.18
+      COMMON:
+        COLOR: 1
+        FLIP: 0
+        BLUR: 0
+        ROTATION: 0
+        LABELSMOOTH: False
+        MIXUP: 0
+        GRAY: 0
+        CUTOUT: 0
+        NEG: 0
+    CONFIG:
+      VID:
+        PATH: '../data/vid/crop511'
+        ANNOTATION: '../data/vid/train.json'
+        RANGE: 100
+        USE: 100000
+      YTB:
+        PATH: '../data/y2b/crop511'
+        ANNOTATION: '../data/y2b/train.json'
+        RANGE: 3
+        USE: 200000
+      GOT10K:
+        PATH: '../data/got10k/crop511'
+        ANNOTATION: '../data/got10k/train.json'
+        RANGE: 100
+        USE: 200000
+      DET:
+        PATH: '../data/det/crop511'
+        ANNOTATION: '../data/det/train.json'
+        RANGE: 100
+        USE: 50000
+      COCO:
+        PATH: "../data/coco/crop511"
+        ANNOTATION: "../data/coco/train2017.json"
+        RANGE: 1
+        USE: 50000

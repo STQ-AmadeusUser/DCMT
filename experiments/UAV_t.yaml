@@ -1,0 +1,242 @@
+COMMON:
+  LOG_DIR: 'logs'   # log file
+  CHECKPOINT_DIR: 'uav_snapshot'   # checkpoint file
+  USE_CUDA: True
+#  GPUS: '1'
+  GPUS: '0,1,2,3'
+
+MODEL:
+  NAME: 'DenseSiam'
+  STRIDE: 8
+  BACKBONE:
+    NAME: "ResNet50Dilated"
+    LAYER: [3]
+  NECK:
+    NAME: "ShrinkChannel"
+    IN_CHANNEL: 1024
+    OUT_CHANNEL: 256
+  HEAD:
+    NAME: "SiamWAVECorr"
+    IN_CHANNEL: 256
+    OUT_CHANNEL: 256
+  LOSS:
+    CLS_LOSS: WBCE
+    REG_LOSS: FCOSIOU
+
+TRAIN:
+  ISTRUE: False  # whether to test
+  WORKERS: 32
+  START_EPOCH: 20  # uav epoch
+  END_EPOCH: 32  # uav epoch
+  TEMPLATE_SIZE: 127
+  SEARCH_SIZE: 255
+  BATCH: 8   # batch for each GPU
+#  RESUME: False
+  RESUME: 're_snapshot/checkpoint_e20.pth'
+  PRETRAIN: 'resnet50dilated.model'
+  LR_POLICY: 'log'
+  PRINT_FREQ: 10
+  CLS_WEIGHT: 1
+  REG_WEIGHT: 1
+  CLIP_GRAD: False
+
+  DDP:
+    ISTRUE: False  # torch distributed data parallel, default: False, normal data parallel
+    RANK: 0
+
+  WARMUP:
+    IFNOT: True
+    TYPE: 'step'
+    EPOCH: 5            # res50 5
+    WARM_POLICY: 'step'
+    KWARGS:
+      start_lr: 0.001    # res50 0.001 alex: 0.005
+      end_lr: 0.005      # res50 0.005  alex: 0.01
+      step: 1
+  LR:
+    TYPE: 'log'
+    KWARGS:
+      start_lr: 0.005        # res50 0.005  alex 0.01
+      end_lr: 0.00001         # res50 0.0005
+
+  LAYERS_LR: 0.1  # res50 0.1  alex: 1  # scale ration for backbone
+  BASE_LR: 0.005
+  UNFIX_EPOCH: 10
+  UNFIX_POLICY: 'log'
+  MOMENTUM: 0.9
+  WEIGHT_DECAY: 0.0001
+  TRAINABLE_LAYER: ['layer1', 'layer2', 'layer3']  # ['layer2', 'layer3', 'layer4'] [] FOR ALL LAYERS
+
+  DATASET:
+    VIDEOS_PER_EPOCH: -1
+#    VIDEOS_PER_EPOCH: 300000
+#    WHICH_USE: ['VISDRONE_SOT']
+#    WHICH_USE: ['VISDRONE_DET']
+#    WHICH_USE: ['VISDRONE_VID']
+#    WHICH_USE: ['VTUAVL']
+#    WHICH_USE: ['VTUAVS']
+#    WHICH_USE: ['PURDUE']
+#    WHICH_USE: ['ANTIUAV']
+#    WHICH_USE: ['VISDRONE_SOT', 'VISDRONE_DET', 'VISDRONE_VID', 'VTUAVL', 'VTUAVS', 'PURDUE']  # for uav epoch
+    WHICH_USE: ['VISDRONE_SOT', 'VISDRONE_DET', 'VISDRONE_VID', 'VTUAVL', 'VTUAVS', 'PURDUE', 'ANTIUAV']  # for uav epoch
+
+    AUG:
+      EXEMPLAR:
+        SHIFT: 4
+        SCALE: 0.05
+      SEARCH:
+        SHIFTs: 64
+        SCALEs: 0.18
+      COMMON:
+        COLOR: 1
+        FLIP: 0
+        BLUR: 0
+        ROTATION: 0
+        LABELSMOOTH: False
+        MIXUP: 0
+        GRAY: 0
+        CUTOUT: 0
+        NEG: 0.2  # 0 for general epoch 0-20; 0.2 for uav epoch 0-16
+    CONFIG:
+      VISDRONE_SOT:
+        PATH: "../data/visdrone_sot/crop511"
+        ANNOTATION: "../data/visdrone_sot/train_val.json"
+        RANGE: 150
+        USE: 100000  # total 69941
+      VISDRONE_DET:
+        PATH: "../data/visdrone_det/crop511"
+        ANNOTATION: "../data/visdrone_det/train_val_test.json"
+        RANGE: 10  # any value
+        USE: 50000  # total
+      VISDRONE_VID:
+        PATH: "../data/visdrone_vid/crop511"
+        ANNOTATION: "../data/visdrone_vid/train_val_test.json"
+        RANGE: 10  # any value
+        USE: 50000  # total
+      VTUAVL:
+        PATH: "../data/vtuavl/crop511"
+        ANNOTATION: "../data/vtuavl/train.json"
+        RANGE: 300
+        USE: 100000  # total
+      VTUAVS:
+        PATH: "../data/vtuavs/crop511"
+        ANNOTATION: "../data/vtuavs/train.json"
+        RANGE: 150
+        USE: 100000  # total
+      PURDUE:
+        PATH: "../data/purdue/crop511"
+        ANNOTATION: "../data/purdue/train.json"
+        RANGE: 10  # any value
+        USE: 50000  # total
+      ANTIUAV:
+        PATH: "../data/antiuav/crop511/train2022"
+        ANNOTATION: "../data/antiuav/train2022.json"
+        RANGE: 150
+        USE: 100000  # total
+
+TEST:    # TEST model is same as TRAIN.MODEL
+  ISTRUE: True  # whether to test
+  THREADS: 12  # multi threads test
+#  DATA: 'DTB70'
+#  DATA: 'UAV20L'
+#  DATA: 'UAV10FPS'
+#  DATA: 'UAV123'
+#  DATA: 'UAVDT'
+  DATA: 'UAVTRACK112'
+#  DATA: 'UAVTRACK112L'
+#  DATA: 'VISDRONE'
+#  DATA: 'VTUAVL'
+#  DATA: 'VTUAVS'
+#  DATA: 'ANTIUAV'
+  START_EPOCH: 21
+  END_EPOCH: 32
+  EPOCH_TEST: True   # use default hyper-parameters
+  RESUME: '/home/users/feng01.gao/tianqi.shen/DCMT/snapshots/tiny/checkpoint_e32.pth'
+#  RESUME: 're_snapshot/checkpoint_e21.pth'   # for DTB70, VISDRONE
+#  RESUME: 're_snapshot/checkpoint_e23.pth'   # for UAV10FPS
+#  RESUME: 're_snapshot/checkpoint_e14.pth'   # for UAV20L
+#  RESUME: 're_snapshot/checkpoint_e31.pth'   # for UAVDT, UAVTRACK112
+#  RESUME: False   # if not false, ignore start and end epochs
+  HYPERS:
+    DTB70:  # not tuned
+      penalty_k: 0.034
+      lr: 0.313
+      window_influence: 0.284
+      small_sz: 271
+      big_sz: 287
+    UAV123:  # not tuned
+      penalty_k: 0.034
+      lr: 0.313
+      window_influence: 0.284
+      small_sz: 271
+      big_sz: 287
+    UAV10FPS:  # not tuned
+      penalty_k: 0.034
+      lr: 0.313
+      window_influence: 0.284
+      small_sz: 271
+      big_sz: 287
+    UAV20L:  # not tuned
+      penalty_k: 0.034
+      lr: 0.313
+      window_influence: 0.284
+      small_sz: 271
+      big_sz: 287
+    UAVDT:  # not tuned
+      penalty_k: 0.034
+      lr: 0.313
+      window_influence: 0.284
+      small_sz: 271
+      big_sz: 287
+    UAVTRACK112:  # not tuned
+      penalty_k: 0.034
+      lr: 0.313
+      window_influence: 0.284
+      small_sz: 271
+      big_sz: 287
+    UAVTRACK112L:  # not tuned
+      penalty_k: 0.034
+      lr: 0.313
+      window_influence: 0.284
+      small_sz: 271
+      big_sz: 287
+    VISDRONE:  # not tuned
+      penalty_k: 0.034
+      lr: 0.313
+      window_influence: 0.284
+      small_sz: 271
+      big_sz: 287
+    VTUAVL:  # not tuned
+      penalty_k: 0.034
+      lr: 0.313
+      window_influence: 0.284
+      small_sz: 271
+      big_sz: 287
+    VTUAVS:  # not tuned
+      penalty_k: 0.034
+      lr: 0.313
+      window_influence: 0.284
+      small_sz: 271
+      big_sz: 287
+    ANTIUAV:  # not tuned
+      penalty_k: 0.034
+      lr: 0.313
+      window_influence: 0.284
+      small_sz: 271
+      big_sz: 287
+
+TUNE:    # TUNE model is same as TRAIN.MODEL
+  ISTRUE: False  # whether to tune
+  DATA: 'DTB70'
+  RESUME: 're_snapshot/checkpoint_e32.pth'   # please change this to the checkpoint you want
+  TRIAL_PER_GPU: 8
+
+DEMO:    # TEST model is same as TRAIN.MODEL
+  RESUME: 're_snapshot/checkpoint_e21.pth'   # if not false, ignore start and end epochs
+  VIS: True
+  HYPERS:
+    penalty_k: 0.077
+    lr: 0.45
+    window_influence: 0.306
+    small_sz: 255
+    big_sz: 287
