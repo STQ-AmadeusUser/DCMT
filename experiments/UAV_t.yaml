@@ -151,12 +151,11 @@ TEST:    # TEST model is same as TRAIN.MODEL
   START_EPOCH: 21
   END_EPOCH: 32
   EPOCH_TEST: True   # use default hyper-parameters
-  RESUME: '/home/users/feng01.gao/tianqi.shen/DCMT/snapshots/tiny/checkpoint_e32.pth'
 #  RESUME: 're_snapshot/checkpoint_e21.pth'   # for DTB70, VISDRONE
 #  RESUME: 're_snapshot/checkpoint_e23.pth'   # for UAV10FPS
 #  RESUME: 're_snapshot/checkpoint_e14.pth'   # for UAV20L
 #  RESUME: 're_snapshot/checkpoint_e31.pth'   # for UAVDT, UAVTRACK112
-#  RESUME: False   # if not false, ignore start and end epochs
+  RESUME: False   # if not false, ignore start and end epochs
   HYPERS:
     DTB70:  # not tuned
       penalty_k: 0.034
